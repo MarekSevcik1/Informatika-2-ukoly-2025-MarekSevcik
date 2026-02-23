@@ -1,12 +1,21 @@
 class Product:
     """
-    Reprezentuje produkt ve skladu.
+    Reprezentuje základní produkt ve skladu.
     """
     def __init__(self, name: str, price: float, quantity: int):
-        # TODO: Inicializace, využití properties pro validaci
-        self._name = name
+        self.name = name
         self.price = price
         self.quantity = quantity
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @name.setter
+    def name(self, value: str):
+        if not value or len(value.strip()) == 0:
+            raise ValueError("Název produktu nesmí být prázdný.")
+        self._name = value.strip()
 
     @property
     def price(self) -> float:
@@ -14,11 +23,9 @@ class Product:
 
     @price.setter
     def price(self, value: float):
-        # TODO: Validace, raise ValueError pokud < 0
         if value < 0:
-            raise ValueError
-        else:
-            self._price = value
+            raise ValueError("Cena nesmí být záporná.")
+        self._price = float(value)
 
     @property
     def quantity(self) -> int:
@@ -26,29 +33,32 @@ class Product:
 
     @quantity.setter
     def quantity(self, value: int):
-        # TODO: Validace
         if value < 0:
-            raise ValueError
-        else:
-            self._quantity = value
+            raise ValueError("Množství nesmí být záporné.")
+        self._quantity = int(value)
 
     def to_dict(self) -> dict:
         """Vrátí slovníkovou reprezentaci pro JSON."""
         return {
-            "name": self._name,
-            "price": self._price,
-            "quantity": self._quantity
+            "name": self.name,
+            "price": self.price,
+            "quantity": self.quantity
         }
 
     @staticmethod
     def from_dict(data: dict) -> 'Product':
-        """Vytvoří instanci Product ze slovníku."""
+        """Vytvoří instanci Product nebo podtřídy ze slovníku."""
+        # Pokud JSON obsahuje brand, jde o elektroniku
+        if 'brand' in data:
+            return Electronics(data['name'], data['price'], data['quantity'], data['brand'])
+        # Pokud obsahuje expiration_date, jde o potravinu
+        elif 'expiration_date' in data:
+            return PerishableProduct(data['name'], data['price'], data['quantity'], data['expiration_date'])
         return Product(data['name'], data['price'], data['quantity'])
 
     def __str__(self) -> str:
-        # TODO: Hezký výpis
-        return f"Produkt: {self._name}, stoji {self._price} v poctu: {self._quantity} kusu."
-    
+        return f"{self.name:<20} | Cena: {self.price:>8.2f} Kč | Skladem: {self.quantity:>4} ks"
+
 
 class Electronics(Product):
     def __init__(self, name, price, quantity, brand):
@@ -60,38 +70,38 @@ class Electronics(Product):
         return self._brand
     
     @brand.setter
-    def brand(self, jmeno):
-        if len(jmeno) <= 0:
-            print("Elektronika musi mit znacku")
-        else:
-            self._brand= jmeno
-
+    def brand(self, value):
+        if not value:
+            raise ValueError("Elektronika musí mít uvedenou značku.")
+        self._brand = value
 
     def to_dict(self):
-        return super().to_dict() + {"brand": self._brand}
+        # Operátor | slouží ke sloučení slovníků (Python 3.9+)
+        return super().to_dict() | {"brand": self.brand}
     
     def __str__(self):
-        return super().__str__() + f"od znacky: {self._brand}"
-    
+        return super().__str__() + f" | Značka: {self.brand}"
+
 
 class PerishableProduct(Product):
-    def __init__(self, name, price, quantity, expirationDate):
+    def __init__(self, name, price, quantity, expiration_date):
         super().__init__(name, price, quantity)
-        self.expirationDate = expirationDate
+        self.expiration_date = expiration_date
 
     @property
-    def expirationDate(self):
-        return self._expirationDate
+    def expiration_date(self):
+        return self._expiration_date
     
-    @expirationDate.setter
-    def expirationDate(self, datum):
-        if datum <= 0:
-            print("Produkt musi vydrzet alespon jeden den")
-        else:
-            self._expirationDate= datum
+    @expiration_date.setter
+    def expiration_date(self, value):
+        # Tady by se dala přidat kontrola na datetime objekt, 
+        # pro teď kontrolujeme nenulovost
+        if not value:
+            raise ValueError("Produkt podléhající zkáze musí mít datum spotřeby.")
+        self._expiration_date = value
 
     def to_dict(self):
-        return super().to_dict() + {"expiration date": self._expirationDate}
+        return super().to_dict() | {"expiration_date": self.expiration_date}
     
     def __str__(self):
-        return super().__str__() + f", datum spotreby: {self._expirationDate}"
+        return super().__str__() + f" | Spotřebujte do: {self.expiration_date}"
